@@ -400,7 +400,7 @@ function renderMechanism(): void {
   const details = {
     snow: '<p>EEA1 reverses the four 32-bit key words before SNOW initialization. The IV words are bearer/direction, COUNT, bearer/direction, COUNT. The shown word is <code>F XOR s0</code>.</p>',
     aes: '<p>EEA2 packs COUNT into bytes 0–3 and bearer/direction into byte 4. Only the low 64 counter bits advance; WebCrypto encrypts each visible block while this module performs the CTR wiring.</p>',
-    zuc: '<p>EEA3 duplicates its first eight IV bytes into the second half. LFSR additions reduce modulo <code>2³¹−1</code>; when the result is zero, the register stores <code>7fffffff</code>.</p>',
+    zuc: '<p>EEA3 duplicates its first eight IV bytes into the second half. LFSR additions reduce modulo <code>2³¹−1</code>; when the result is zero, the register stores <code>7fffffff</code>.</p><p>The same algorithm is standardised in China as GM/T 0001-2012, the Zu Chongzhi (祖冲之) stream cipher; the vectors checked here are the ETSI/SAGE ones.</p>',
   }
   elementById<HTMLDivElement>('mechanism-detail').innerHTML = details[mechanismFamily]
 }

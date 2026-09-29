@@ -29,6 +29,8 @@ Use this lab to study 3GPP confidentiality input packing, compare three differen
 
 The EEA/NEA families are confidentiality algorithms for 3GPP radio and network security profiles. This lab shows only their keystream-generating core. Integrity siblings, negotiation, key hierarchy, replay handling, and deployment policy remain outside its boundary.
 
+ZUC is standardised twice over: as 128-EEA3/128-EIA3 in 3GPP TS 35.221-223, the framing this lab uses throughout, and in China as GM/T 0001-2012, the Zu Chongzhi stream cipher it is named for. The KAT here is the ETSI/SAGE implementors' data; the Chinese standard is cited because it is the same algorithm under the designation a reader may meet it by, not because anything below is derived from it.
+
 ## How to Run Locally
 
 ```bash
