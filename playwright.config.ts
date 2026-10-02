@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
 
-const baseURL = 'http://localhost:4606/crypto-lab-air-stream/'
+const baseURL = 'http://localhost:4709/crypto-lab-air-stream/'
 
 export default defineConfig({
   testDir: './e2e',
@@ -28,7 +28,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run build && npm run preview -- --port 4606 --strictPort',
+    command: 'npm run build && npm run preview -- --port 4709 --strictPort',
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
