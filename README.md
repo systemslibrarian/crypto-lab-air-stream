@@ -58,6 +58,11 @@ npm run test:a11y
 npm run test:e2e
 ```
 
+The production type-check uses the native TypeScript 7 compiler. The ZUC
+package currently declares a TypeScript 5 JavaScript-API peer, so that API stays
+installed side-by-side; `npm run check:typescript` guards both identities and
+strict native-compiler rejection controls without bypassing peer validation.
+
 The unit suite contains 17 tests. The KAT fixtures live beside their implementations in `src/snow/snow3g.test.ts`, `src/aes/eea2.test.ts`, and `src/zuc/zuc.test.ts`; sources are identified in the tests and rendered UI. ZUC is additionally cross-checked against `@li0ard/zuc`, AES-CTR against an independent WebCrypto path, and the browser claims suite re-derives AES with Node/OpenSSL. The Playwright gate runs 2 accessibility traversals and 26 claims checks across desktop and mobile projects.
 
 ## Performance
