@@ -109,6 +109,17 @@ test('malformed input fails closed and leaves no stale verdict', async ({ page }
   await expect(page.locator('[data-testid^="stream-"]')).toHaveCount(0)
 })
 
+test('the SNOW mechanism diagram names all three FSM registers and the real F equation', async ({ page }) => {
+  await page.locator('[data-mechanism="snow"]').click()
+  const canvas = page.locator('[data-testid="mechanism-snow"]')
+  await expect(canvas).toBeVisible()
+  // SNOW 3G specification (ETSI/SAGE UEA2 & UIA2 Document 2) 3.3 and 3.4.6:
+  // three FSM registers, and F = (s15 + R1) XOR R2 — not R1 + R2.
+  await expect(canvas.locator('.fsm-box small')).toHaveText(['R1', 'R2', 'R3'])
+  await expect(canvas.locator('.result-box small').first()).toHaveText('F = (s15 + R1) XOR R2')
+  await expect(canvas).not.toContainText('R1 + R2')
+})
+
 test('the mechanism controls reach each real final-state trace', async ({ page }) => {
   for (const [family, id] of [['SNOW 3G', 'snow'], ['AES-CTR', 'aes'], ['ZUC', 'zuc']] as const) {
     await page.locator(`[data-mechanism="${id}"]`).click()

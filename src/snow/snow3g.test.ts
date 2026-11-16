@@ -41,6 +41,30 @@ describe('SNOW 3G / 128-EEA1', () => {
     expect(bytesToHex(initialization.iv)).toBe('ac000000398a59b4ac000000398a59b4')
   })
 
+  it('produces F from s15, R1 and R2 exactly as the specification clocks the FSM', () => {
+    // ETSI/SAGE "Specification of the 3GPP Confidentiality and Integrity
+    // Algorithms UEA2 & UIA2, Document 2: SNOW 3G Specification" v1.1, 3.4.6:
+    // the FSM has two input words s15 and s5, three registers R1/R2/R3, and
+    //   F = (s15 + R1) XOR R2          (+ is addition modulo 2^32)
+    //   r = R2 + (R3 XOR s5),  R3 = S2(R2),  R2 = S1(R1),  R1 = r
+    // and 4.2 STEP 2: z_t = F XOR s0. The mechanism diagram prints F and
+    // z_t from this trace, so it must be these equations and not "R1 + R2".
+    const generator = new Snow3g(
+      hexToBytes('2bd6459f82c5b300952c49104881ff48'),
+      hexToBytes('ea024714ad5c4d84df1f9b251c0bf45f'),
+    )
+    const trace = generator.nextWordWithTrace()
+    const [r1, r2, r3] = trace.fsmBefore
+
+    expect(trace.fOutput).toBe((((trace.lfsrBefore[15] + r1) >>> 0) ^ r2) >>> 0)
+    expect(trace.fOutput).not.toBe(((r1 + r2) >>> 0))
+    expect(trace.keystreamWord).toBe((trace.fOutput ^ trace.lfsrBefore[0]) >>> 0)
+
+    // R3 is a real part of the state: it is carried, and it drives the R1 update.
+    expect(trace.fsmBefore).toHaveLength(3)
+    expect(trace.fsmAfter[0]).toBe((r2 + ((r3 ^ trace.lfsrBefore[5]) >>> 0)) >>> 0)
+  })
+
   it('fails closed for zero and oversized requests', () => {
     const key = new Uint8Array(16)
     expect(generateSnowEea1Keystream(key, 0, 0, 0, 0)).toEqual({

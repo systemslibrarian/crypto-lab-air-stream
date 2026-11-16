@@ -129,6 +129,8 @@ fieldset.control, .attack-controls fieldset { min-width: 0; margin: 0; padding: 
 .state-cell { padding: .55rem .25rem; color: var(--text-dim); font-size: .68rem; overflow: hidden; }
 .state-cell small, .fsm-box small, .result-box small, .byte-cell small { display: block; color: var(--text-muted); font-size: .56rem; margin-bottom: .2rem; }
 .fsm-row { display: grid; grid-template-columns: repeat(2,minmax(7rem,1fr)) auto minmax(9rem,1.2fr); gap: .6rem; align-items: center; margin: 2rem auto; max-width: 760px; }
+/* SNOW shows all three FSM registers plus F and the keystream word: five cells. */
+.family-snow .fsm-row { grid-template-columns: repeat(3,minmax(0,1fr)) repeat(2,minmax(8rem,1.2fr)); }
 .fsm-box, .result-box { padding: .8rem .5rem; }
 .result-box { border-color: var(--family-color); color: var(--family-color); }
 .operator { text-align: center; color: var(--text-muted); font-family: var(--mono); font-size: .75rem; }

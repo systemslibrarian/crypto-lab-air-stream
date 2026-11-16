@@ -333,13 +333,13 @@ function renderSnowMechanism(output: FamilyOutput): string {
   const trace = output.trace as SnowRoundTrace
   return `
     <div class="mechanism-canvas family-snow stage-${mechanismStage}" data-testid="mechanism-snow">
-      <div class="mechanism-caption"><span>16 × 32-bit LFSR</span><b>word ${trace.wordIndex + 1}</b></div>
+      <div class="mechanism-caption"><span>16 × 32-bit LFSR + 3-register FSM</span><b>word ${trace.wordIndex + 1}</b></div>
       <div class="state-grid snow-grid">${hexCells(trace.lfsrBefore)}</div>
       <div class="fsm-row">
         <span class="fsm-box"><small>R1</small>${hexWord(trace.fsmBefore[0])}</span>
-        <b class="operator">+</b>
         <span class="fsm-box"><small>R2</small>${hexWord(trace.fsmBefore[1])}</span>
-        <b class="operator">→ F</b>
+        <span class="fsm-box"><small>R3</small>${hexWord(trace.fsmBefore[2])}</span>
+        <span class="result-box"><small>F = (s15 + R1) XOR R2</small>${hexWord(trace.fOutput)}</span>
         <span class="result-box"><small>F XOR s0</small>${hexWord(trace.keystreamWord)}</span>
       </div>
       <div class="feedback-line"><span>feedback</span><code>${hexWord(trace.feedback)}</code><span>s15 receives feedback; every register shifts left</span></div>
@@ -398,7 +398,7 @@ function renderMechanism(): void {
   elementById<HTMLButtonElement>('step-back').disabled = mechanismStage === 0
   elementById<HTMLButtonElement>('step-forward').disabled = mechanismStage === 2
   const details = {
-    snow: '<p>EEA1 reverses the four 32-bit key words before SNOW initialization. The IV words are bearer/direction, COUNT, bearer/direction, COUNT. The shown word is <code>F XOR s0</code>.</p>',
+    snow: '<p>EEA1 reverses the four 32-bit key words before SNOW initialization. The IV words are bearer/direction, COUNT, bearer/direction, COUNT. The shown word is <code>F XOR s0</code>.</p><p>The FSM takes two LFSR words, <code>s15</code> and <code>s5</code>, and holds three registers. Its output is <code>F = (s15 + R1) XOR R2</code>, where <code>+</code> is addition modulo 2³². <code>R3</code> never reaches <code>F</code> directly; it feeds the update <code>R1 ← R2 + (R3 XOR s5)</code>, then <code>R3 ← S2(R2)</code> and <code>R2 ← S1(R1)</code>.</p>',
     aes: '<p>EEA2 packs COUNT into bytes 0–3 and bearer/direction into byte 4. Only the low 64 counter bits advance; WebCrypto encrypts each visible block while this module performs the CTR wiring.</p>',
     zuc: '<p>EEA3 duplicates its first eight IV bytes into the second half. LFSR additions reduce modulo <code>2³¹−1</code>; when the result is zero, the register stores <code>7fffffff</code>.</p><p>The same algorithm is standardised in China as GM/T 0001-2012, the Zu Chongzhi (祖冲之) stream cipher; the vectors checked here are the ETSI/SAGE ones.</p>',
   }
