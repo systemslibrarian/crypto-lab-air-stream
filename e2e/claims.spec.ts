@@ -58,6 +58,47 @@ test('all three KAT verdicts are live and the same tuple yields distinct streams
   expect(new Set(values).size).toBe(3)
 })
 
+test('matching one-byte prefixes preserve the three independent KAT verdicts', async ({ page }) => {
+  await page.locator('#count-input').fill('107')
+  await page.locator('#length-input').fill('1')
+  await page.locator('#run-streams').click()
+  await expect(page.getByTestId('stream-snow')).toHaveText('72')
+  await expect(page.getByTestId('stream-aes')).toHaveText('06')
+  await expect(page.getByTestId('stream-zuc')).toHaveText('06')
+  await expect(page.locator('#family-summary')).toContainText('all 3 KATs match')
+  await expect(page.locator('#family-summary')).toContainText('displayed prefixes match')
+})
+
+test('editing COUNT retires an unfinished request as well as a completed result', async ({ page }) => {
+  await page.evaluate(() => {
+    const encrypt = crypto.subtle.encrypt.bind(crypto.subtle)
+    crypto.subtle.encrypt = async (...args) => {
+      crypto.subtle.encrypt = encrypt
+      document.documentElement.dataset.encryptionPending = 'true'
+      await new Promise<void>(resume => window.addEventListener('release-test-encryption', () => resume(), { once: true }))
+      return encrypt(...args)
+    }
+  })
+  await page.locator('#run-streams').click()
+  await expect(page.locator('html')).toHaveAttribute('data-encryption-pending', 'true')
+  await page.locator('#count-input').fill('109')
+  await page.evaluate(() => window.dispatchEvent(new Event('release-test-encryption')))
+  await expect(page.locator('#run-streams')).toBeEnabled()
+  await expect(page.locator('#family-summary')).toContainText('RETIRED')
+  await expect(page.locator('.stream-output')).toHaveCount(0)
+  await page.locator('#run-streams').click()
+  await expect(page.locator('#family-summary')).toContainText('EXECUTED')
+})
+
+test('editing either example message withdraws all previous evidence', async ({ page }) => {
+  for (const id of ['message-a', 'message-b']) {
+    await page.locator('#' + id).fill('Edited classroom example')
+    await expect(page.locator('#example-verdict-label')).toHaveText('AWAITING RESULT')
+    await expect(page.locator('#recovery-verdict')).not.toHaveAttribute('data-recovered', 'true')
+    await expect(page.locator('#cipher-a, #cipher-b, #cipher-xor')).toHaveText(['—', '—', '—'])
+  }
+})
+
 test('AES output equals independently encrypted counter blocks', async ({ page }) => {
   const expected = aesCtrReference(fromHex('d3c5d592327fb11c4035c6680af8c6d1'), 32)
   expect(await stream(page, 'aes')).toBe(toHex(expected))
@@ -73,7 +114,7 @@ test('ZUC output equals the independent @li0ard/zuc implementation', async ({ pa
   expect(await stream(page, 'zuc')).toBe(toHex(expected))
 })
 
-test('SNOW output agrees with the Annex C.3 fixture on every defined bit', async ({ page }) => {
+test('SNOW output agrees with the UEA2 Document 4 fixture on every defined bit', async ({ page }) => {
   const plaintext = fromHex('981ba6824c1bfb1ab485472029b71d808ce33e2cc3c0b5fc1f3de8a6dc66b1f0')
   const ciphertext = fromHex('5d5bfe75eb04f68ce0a12377ea00b37d47c6a0ba06309155086a859c4341b378')
   const fixtureStream = xor(plaintext, ciphertext)

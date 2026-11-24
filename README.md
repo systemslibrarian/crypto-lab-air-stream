@@ -6,7 +6,7 @@ Air Stream is a browser lab for the three deployed 128-bit 3GPP confidentiality 
 
 ## Exhibits
 
-1. **The Three Families** runs all three generators from one cellular input tuple and reports their independent KAT verdicts.
+1. **The Three Families** runs all three generators from one cellular input tuple and reports their independent known-answer test (KAT) verdicts. Short output prefixes can match even when every algorithm passes its own test.
 2. **The Mechanism** steps through a captured SNOW 3G LFSR/FSM clock, an AES-CTR counter encryption, or a ZUC LFSR/FSM clock.
 3. **Reuse + Evolution** performs a real two-time-pad recovery with any family, then separately maps the 256-bit successor names without claiming KAT verification.
 
@@ -63,7 +63,7 @@ package currently declares a TypeScript 5 JavaScript-API peer, so that API stays
 installed side-by-side; `npm run check:typescript` guards both identities and
 strict native-compiler rejection controls without bypassing peer validation.
 
-The unit suite contains 17 tests. The KAT fixtures live beside their implementations in `src/snow/snow3g.test.ts`, `src/aes/eea2.test.ts`, and `src/zuc/zuc.test.ts`; sources are identified in the tests and rendered UI. ZUC is additionally cross-checked against `@li0ard/zuc`, AES-CTR against an independent WebCrypto path, and the browser claims suite re-derives AES with Node/OpenSSL. The Playwright gate runs 2 accessibility traversals and 26 claims checks across desktop and mobile projects.
+The KAT fixtures live beside their implementations in `src/snow/snow3g.test.ts`, `src/aes/eea2.test.ts`, and `src/zuc/zuc.test.ts`; sources are identified in the tests and rendered UI. ZUC is additionally cross-checked against `@li0ard/zuc`, AES-CTR against an independent WebCrypto path, and the browser claims suite re-derives AES with Node/OpenSSL. The Playwright gate runs 2 accessibility traversals and 26 claims checks across desktop and mobile projects.
 
 ## Performance
 

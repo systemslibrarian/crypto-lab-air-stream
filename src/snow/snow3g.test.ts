@@ -17,7 +17,7 @@ describe('SNOW 3G / 128-EEA1', () => {
     expect(bytesToHex(generator.keystream(8))).toBe('abee97047ac31373')
   })
 
-  it('matches 3GPP TS 33.401 Annex C.3, test set 1', () => {
+  it('matches ETSI/SAGE UEA2/UIA2 Document 4 §3.3.2, test set 1', () => {
     const key = hexToBytes('d3c5d592327fb11c4035c6680af8c6d1')
     const plaintext = hexToBytes('981ba6824c1bfb1ab485472029b71d808ce33e2cc3c0b5fc1f3de8a6dc66b1f0')
     const result = encryptSnowEea1(key, 0x398a59b4, 0x15, 1, plaintext, 253)

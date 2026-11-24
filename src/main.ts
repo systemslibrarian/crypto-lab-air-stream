@@ -164,7 +164,7 @@ app.innerHTML = `
             <div class="equation-row"><span>A XOR B</span><code id="cipher-xor" tabindex="0" role="region" aria-label="XOR of both ciphertexts">Waiting…</code></div>
             <div id="recovery-verdict" class="alarm-verdict" role="status">
               <i data-lucide="alert-triangle" aria-hidden="true"></i>
-              <div><b>ALARM · PLAINTEXT RECOVERED</b><span id="recovered-text">Computing…</span></div>
+              <div><b id="example-verdict-label">AWAITING RESULT</b><span id="recovered-text">Computing…</span></div>
             </div>
             <p id="negative-claim" class="negative-claim">All three KATs can still pass: confidentiality does not survive reusing one key, COUNT, bearer, and direction tuple for two messages.</p>
           </div>
@@ -177,7 +177,7 @@ app.innerHTML = `
               <p class="status-chip status-unverified"><i data-lucide="shield-question" aria-hidden="true"></i>NOT KAT-VERIFIED HERE</p>
               <h3 id="forward-title">The 256-bit evolution</h3>
             </div>
-            <p>This panel maps the named successor sets from 3GPP metadata. It does not generate 256-bit output, reproduce restricted algorithm text, or claim conformance without public vectors.</p>
+            <p>This panel maps the Release 19 algorithm sets listed by ETSI. It does not generate 256-bit output or test those algorithms for conformance.</p>
           </div>
           <div class="evolution-table" role="table" aria-label="Forward-looking 256-bit family mapping" tabindex="0">
             <div class="evolution-row evolution-head" role="row">
@@ -193,10 +193,10 @@ app.innerHTML = `
               <b role="cell">ZUC-256</b><span role="cell">256-NEA6</span><span role="cell">256-NIA6</span><span role="cell">256-NCA6</span>
             </div>
           </div>
-          <div class="nca-sketch" role="img" aria-label="Illustrative NCA control flow: plaintext is encrypted, then the ciphertext is authenticated to produce ciphertext and a tag">
-            <span>Plaintext</span><b>ENCRYPT</b><span>Ciphertext</span><b>MAC</b><span>Ciphertext + tag</span>
+          <div class="nca-sketch" role="img" aria-label="Authenticated-encryption interface showing plaintext and associated data as inputs and ciphertext and a tag as outputs">
+            <span>Plaintext + associated data</span><b>AUTHENTICATED ENCRYPTION</b><span>Ciphertext + tag</span>
           </div>
-          <p class="illustrative-note"><i data-lucide="alert-triangle" aria-hidden="true"></i><span>Illustrative only: the brief describes NCA as a one-pass Encrypt-then-MAC AEAD mode with a 256-bit key and 128-bit IV. This lab does not treat that statement as KAT-verified.</span></p>
+          <p class="illustrative-note"><i data-lucide="alert-triangle" aria-hidden="true"></i><span>Illustrative only. This is the authenticated-encryption interface. The diagram leaves each algorithm’s internal order of operations unspecified.</span></p>
           <details class="depth-note source-note">
             <summary>Source boundary and non-goals</summary>
             <p>Metadata links: <a href="https://www.etsi.org/deliver/etsi_ts/135200_135299/135240/" target="_blank" rel="noopener">TS 35.240</a>, <a href="https://www.etsi.org/deliver/etsi_ts/135200_135299/135243/" target="_blank" rel="noopener">TS 35.243</a>, and <a href="https://www.etsi.org/deliver/etsi_ts/135200_135299/135246/" target="_blank" rel="noopener">TS 35.246</a>. No full NAS/AS handshake, attach flow, key hierarchy, or relative-strength claim is in scope. This is not production crypto.</p>
@@ -279,7 +279,10 @@ let katResults: KatResult[] = []
 let mechanismFamily: FamilyId = 'snow'
 let mechanismStage = 0
 let attackFamily: FamilyId = 'snow'
+let exampleSequence = 0
 let requestSequence = 0
+let pendingInputs: CellularInputs | undefined
+const knownAnswers = runKnownAnswerTests().catch(() => [])
 
 function katFor(id: FamilyId): KatResult | undefined {
   return katResults.find((result) => result.id === id)
@@ -315,12 +318,16 @@ function renderFamilyOutputs(): void {
 function renderSummary(): void {
   const summary = elementById<HTMLDivElement>('family-summary')
   const allKatsPass = katResults.length === 3 && katResults.every((result) => result.pass)
-  if (currentRun?.ok && currentRun.allDifferent && allKatsPass) {
+  if (currentRun?.ok && allKatsPass) {
+    const comparison = currentRun.allDifferent
+      ? 'The displayed prefixes differ.'
+      : 'At least two displayed prefixes match. Different ciphers can produce the same short prefix.'
     summary.className = 'comparison-status status-pass'
-    summary.innerHTML = '<i data-lucide="circle-check" aria-hidden="true"></i><span><b>EXECUTED</b> · all 3 KATs match, and this tuple produced 3 different keystreams.</span>'
+    summary.innerHTML = `<i data-lucide="circle-check" aria-hidden="true"></i><span><b>EXECUTED</b> · all 3 KATs match. ${comparison}</span>`
   } else {
     summary.className = 'comparison-status status-fail'
-    summary.innerHTML = `<i data-lucide="circle-x" aria-hidden="true"></i><span><b>CHECK FAILED</b> · ${currentRun?.error ?? 'A KAT failed or two outputs matched.'}</span>`
+    summary.innerHTML = '<i data-lucide="circle-x" aria-hidden="true"></i><span><b>CHECK FAILED</b> · </span>'
+    summary.querySelector('span')?.append(currentRun?.error ?? 'The three known-answer tests did not all complete and match.')
   }
   renderIcons()
 }
@@ -405,16 +412,24 @@ function renderMechanism(): void {
   elementById<HTMLDivElement>('mechanism-detail').innerHTML = details[mechanismFamily]
 }
 
-async function refreshFamilies(inputs: CellularInputs): Promise<void> {
+async function refreshFamilies(inputs: CellularInputs): Promise<boolean> {
   const sequence = ++requestSequence
+  pendingInputs = inputs
   const submit = elementById<HTMLButtonElement>('run-streams')
   const error = elementById<HTMLParagraphElement>('input-error')
   submit.disabled = true
   submit.innerHTML = '<i data-lucide="refresh-cw" aria-hidden="true"></i><span>Computing</span>'
   error.hidden = true
   renderIcons()
-  const result = await runFamilies(inputs)
-  if (sequence !== requestSequence) return
+  const [kats, result] = await Promise.all([
+    knownAnswers,
+    runFamilies(inputs).catch((): FamilyRun => ({
+      ok: false, outputs: [], allDifferent: false, error: 'The browser could not compute all three keystreams.',
+    })),
+  ])
+  if (sequence !== requestSequence) return false
+  pendingInputs = undefined
+  katResults = kats
   currentInputs = inputs
   currentRun = result
   submit.disabled = false
@@ -423,12 +438,25 @@ async function refreshFamilies(inputs: CellularInputs): Promise<void> {
   renderSummary()
   renderMechanism()
   renderIcons()
+  return result.ok
+}
+
+function clearExampleEvidence(): void {
+  exampleSequence++
+  for (const id of ['cipher-a', 'cipher-b', 'cipher-xor']) elementById(id).textContent = '—'
+  delete elementById('recovery-verdict').dataset.recovered
+  elementById('example-verdict-label').textContent = 'AWAITING RESULT'
+  elementById('recovered-text').textContent = 'No result for the current inputs.'
 }
 
 async function refreshAttack(): Promise<void> {
+  clearExampleEvidence()
+  const sequence = exampleSequence
+  if (!currentRun?.ok || pendingInputs) return
   const messageA = elementById<HTMLInputElement>('message-a').value
   const messageB = elementById<HTMLInputElement>('message-b').value
   const result = await runTwoTimePad(attackFamily, currentInputs, messageA, messageB)
+  if (sequence !== exampleSequence) return
   if ('error' in result) {
     elementById<HTMLSpanElement>('recovered-text').textContent = result.error
     return
@@ -437,19 +465,27 @@ async function refreshAttack(): Promise<void> {
   elementById<HTMLElement>('cipher-b').textContent = bytesToHex(result.ciphertextB)
   elementById<HTMLElement>('cipher-xor').textContent = bytesToHex(result.ciphertextXor)
   elementById<HTMLSpanElement>('recovered-text').textContent = `“${result.recoveredText}”`
+  elementById('example-verdict-label').textContent = result.recovered ? 'ALARM · PLAINTEXT RECOVERED' : 'CHECK FAILED'
   elementById<HTMLDivElement>('recovery-verdict').dataset.recovered = String(result.recovered)
 }
 
 function retireStaleResult(): void {
-  if (!currentRun) return
+  const activeInputs = pendingInputs ?? (currentRun ? currentInputs : undefined)
+  if (!activeInputs) return
   let stillCurrent = false
   try {
-    stillCurrent = inputsEqual(parseInputs(), currentInputs)
+    stillCurrent = inputsEqual(parseInputs(), activeInputs)
   } catch {
     stillCurrent = false
   }
   if (stillCurrent) return
 
+  requestSequence++
+  clearExampleEvidence()
+  pendingInputs = undefined
+  const submit = elementById<HTMLButtonElement>('run-streams')
+  submit.disabled = false
+  submit.innerHTML = '<i data-lucide="play" aria-hidden="true"></i><span>Generate</span>'
   currentRun = undefined
   const outputs = elementById<HTMLDivElement>('family-outputs')
   outputs.innerHTML = ''
@@ -464,7 +500,7 @@ function retireStaleResult(): void {
 elementById<HTMLFormElement>('stream-form').addEventListener('submit', (event) => {
   event.preventDefault()
   try {
-    void refreshFamilies(parseInputs()).then(refreshAttack)
+    void refreshFamilies(parseInputs()).then(completed => { if (completed) void refreshAttack() })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Invalid input.'
     const alert = elementById<HTMLParagraphElement>('input-error')
@@ -509,6 +545,8 @@ document.querySelectorAll<HTMLButtonElement>('[data-attack-family]').forEach((bu
   })
 })
 
+for (const id of ['message-a', 'message-b']) elementById(id).addEventListener('input', clearExampleEvidence)
+
 elementById<HTMLFormElement>('attack-form').addEventListener('submit', (event) => {
   event.preventDefault()
   void refreshAttack()
@@ -516,13 +554,7 @@ elementById<HTMLFormElement>('attack-form').addEventListener('submit', (event) =
 
 async function initialize(): Promise<void> {
   renderIcons()
-  const [kats, run] = await Promise.all([runKnownAnswerTests(), runFamilies(currentInputs)])
-  katResults = kats
-  currentRun = run
-  renderFamilyOutputs()
-  renderSummary()
-  renderMechanism()
-  await refreshAttack()
+  if (await refreshFamilies(currentInputs)) await refreshAttack()
   renderIcons()
 }
 
